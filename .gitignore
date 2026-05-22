@@ -1,0 +1,39 @@
+# Environment
+.env
+.env.local
+*.env.local
+
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Storage (keep structure, ignore uploaded files)
+storage/original_pdfs/*
+storage/edited_pdfs/*
+storage/previews/*
+storage/temp/*
+storage/logs/*
+!storage/**/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Docker
+postgres_data/

@@ -1,0 +1,87 @@
+"""Financial engine unit tests — propagation, validation, undo semantics."""
+
+from decimal import Decimal
+
+import pytest
+
+from app.financial_engine.audit_engine import apply_patches, create_inverse_patches
+from app.financial_engine.models import ChangeType, LedgerEntry, TransactionPatch
+from app.financial_engine.propagation_engine import propagate_balances
+from app.financial_engine.recalculator import FinancialRecalculator
+from app.financial_engine.validator import validate_ledger
+
+
+def _entry(
+    tid: str,
+    idx: int,
+    debit: str | None,
+    credit: str | None,
+    balance: str,
+) -> LedgerEntry:
+    return LedgerEntry(
+        transaction_id=tid,
+        row_index=idx,
+        page=1,
+        debit=Decimal(debit) if debit else None,
+        credit=Decimal(credit) if credit else None,
+        balance=Decimal(balance),
+        original_debit=Decimal(debit) if debit else None,
+        original_balance=Decimal(balance),
+    )
+
+
+def test_debit_edit_propagates_downstream():
+    entries = [
+        _entry("t1", 0, "5000", None, "5000"),
+        _entry("t2", 1, "1000", None, "4000"),
+        _entry("t3", 2, None, "500", "4500"),
+    ]
+    opening = Decimal("10000")
+    recalc = FinancialRecalculator(entries, opening)
+    propagate_balances(recalc.entries, 0, opening, mark_affected=False)
+
+    patches, traces = recalc.update_field("t1", ChangeType.DEBIT, "7000")
+
+    assert recalc.entries[0].debit == Decimal("7000")
+    assert recalc.entries[0].balance == Decimal("3000")
+    assert recalc.entries[1].balance == Decimal("2000")
+    assert recalc.entries[2].balance == Decimal("2500")
+    assert len(traces) >= 2
+
+
+def test_balance_chain_validation():
+    entries = [
+        _entry("t1", 0, "5000", None, "5000"),
+        _entry("t2", 1, "1000", None, "4000"),
+    ]
+    opening = Decimal("10000")
+    propagate_balances(entries, 0, opening, mark_affected=False)
+    valid, issues = validate_ledger(entries, opening)
+    assert valid
+    assert not issues
+
+
+def test_balance_mismatch_detected():
+    entries = [
+        _entry("t1", 0, "5000", None, "9999"),
+    ]
+    opening = Decimal("10000")
+    valid, issues = validate_ledger(entries, opening)
+    assert not valid
+    assert len(issues) > 0
+
+
+def test_undo_inverse_patches():
+    entry = _entry("t1", 0, "5000", None, "5000")
+    patch = TransactionPatch(
+        transaction_id="t1",
+        field=ChangeType.DEBIT,
+        old_value="5000",
+        new_value="7000",
+    )
+    apply_patches([entry], [patch])
+    assert entry.debit == Decimal("7000")
+
+    inverse = create_inverse_patches([patch])
+    apply_patches([entry], inverse)
+    assert entry.debit == Decimal("5000")
