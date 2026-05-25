@@ -106,6 +106,8 @@ export function useEditSession(statementId: string | undefined) {
     undo: () => undoMutation.mutate(),
     redo: () => redoMutation.mutate(),
     commit: (notes?: string) => commitMutation.mutate(notes),
+    // Async variant for callers that need to await commit completion
+    commitAsync: (notes?: string) => commitMutation.mutateAsync(notes),
     canUndo: stateQuery.data?.can_undo ?? false,
     canRedo: stateQuery.data?.can_redo ?? false,
     isCommitting: commitMutation.isPending,

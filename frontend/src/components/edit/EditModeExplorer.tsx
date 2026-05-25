@@ -7,14 +7,17 @@ import {
   Undo2,
 } from 'lucide-react'
 import { useEffect } from 'react'
+import { useState } from 'react'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { DependencyGraphPanel } from '@/components/edit/DependencyGraphPanel'
 import { EditableTransactionTable } from '@/components/edit/EditableTransactionTable'
 import { FinancialSummaryCards } from '@/components/edit/FinancialSummaryCards'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useEditSession } from '@/hooks/useEditSession'
 import { useEditSessionStore } from '@/store/useEditSessionStore'
 import { useTransactionStore } from '@/store/useTransactionStore'
+import { exportApi } from '@/services/exportApi'
+import { toast } from '@/components/ui/Toast'
 
 interface EditModeExplorerProps {
   statementId: string
@@ -30,10 +33,14 @@ export function EditModeExplorer({ statementId }: EditModeExplorerProps) {
     undo,
     redo,
     commit,
+    commitAsync,
     canUndo,
     canRedo,
     isCommitting,
   } = useEditSession(statementId)
+
+  const [exporting, setExporting] = useState(false)
+  const navigate = useNavigate()
 
   const debugMode = useEditSessionStore((s) => s.debugMode)
   const setDebugMode = useEditSessionStore((s) => s.setDebugMode)
@@ -77,16 +84,30 @@ export function EditModeExplorer({ statementId }: EditModeExplorerProps) {
         </button>
         <button
           type="button"
-          onClick={() => commit('Phase 4 session commit')}
-          disabled={isCommitting}
+          onClick={async () => {
+            try {
+              await commitAsync?.('Phase 4 session commit')
+              setExporting(true)
+              await exportApi.applyEdits({ statement_id: statementId })
+              navigate(`/preview/${statementId}`, { state: { showEdited: true } })
+            } catch (err) {
+              console.error(err)
+              toast('Failed to generate preview/export', 'error')
+            } finally {
+              setExporting(false)
+            }
+          }}
+          disabled={isCommitting || exporting || state.modified_count === 0}
           className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50"
         >
           {isCommitting ? (
             <Loader2 className="w-4 h-4 animate-spin" />
+          ) : exporting ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Save className="w-4 h-4" />
           )}
-          Commit edits
+          {isCommitting ? 'Saving changes...' : exporting ? 'Generating updated PDF...' : 'Commit edits'}
         </button>
 
         <label className="inline-flex items-center gap-2 text-sm text-zinc-500 cursor-pointer ml-auto">

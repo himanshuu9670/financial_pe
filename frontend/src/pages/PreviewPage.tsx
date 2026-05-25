@@ -1,25 +1,30 @@
 import { motion } from 'framer-motion'
 import { useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { UploadZone } from '@/components/pdf/UploadZone'
 import { StatementPdfViewer } from '@/components/pdf/StatementPdfViewer'
 import { statementsApi } from '@/services/api'
 import { useAppStore } from '@/store/useAppStore'
 import { usePdfStore } from '@/store/usePdfStore'
+import { exportApi } from '@/services/exportApi'
 
 export function PreviewPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const activeId = useAppStore((s) => s.activeStatementId)
   const statementId = id ?? activeId
   const setStatement = usePdfStore((s) => s.setStatement)
   const fileUrl = usePdfStore((s) => s.fileUrl)
 
   useEffect(() => {
-    if (statementId && (!fileUrl || usePdfStore.getState().statementId !== statementId)) {
-      setStatement(statementId, '', statementsApi.previewUrl(statementId))
+    if (!statementId) return
+    const showEdited = (location.state as any)?.showEdited ?? false
+    const desiredUrl = showEdited ? exportApi.previewEdited(statementId) : statementsApi.previewUrl(statementId)
+    if (!fileUrl || usePdfStore.getState().statementId !== statementId) {
+      setStatement(statementId, '', desiredUrl)
     }
-  }, [statementId, fileUrl, setStatement])
+  }, [statementId, fileUrl, setStatement, location.state])
 
   return (
     <div className="space-y-6">

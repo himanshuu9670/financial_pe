@@ -27,12 +27,13 @@ def batch_redact_page(page: fitz.Page, rects: list[list[float]]) -> None:
 
 def draw_replacement_text(page: fitz.Page, target: TextReplacementTarget) -> None:
     span = target.span
-    point = target.insert_point
     typo = span.typography
+    x, y = target.insert_point
+    adjusted_point = (x, y - 1.25)
 
     try:
         page.insert_text(
-            point,
+            adjusted_point,
             span.new_text,
             fontname=span.pymupdf_font,
             fontsize=typo.font_size,
@@ -46,7 +47,7 @@ def draw_replacement_text(page: fitz.Page, target: TextReplacementTarget) -> Non
             error=str(exc),
         )
         page.insert_text(
-            point,
+            adjusted_point,
             span.new_text,
             fontname="helv",
             fontsize=typo.font_size,
