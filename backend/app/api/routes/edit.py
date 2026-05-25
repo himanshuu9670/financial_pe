@@ -8,6 +8,8 @@ from app.financial_engine.models import ChangeType, EditSessionState
 from app.schemas.edit_session import (
     CommitSessionRequest,
     DependencyNodeSchema,
+    EditTimelineEventSchema,
+    FieldCoordinateSchema,
     LedgerEntrySchema,
     PropagationTraceSchema,
     SessionActionRequest,
@@ -15,12 +17,41 @@ from app.schemas.edit_session import (
     StartSessionRequest,
     StartSessionResponse,
     SummarySchema,
+    TransactionCoordinatesSchema,
     UpdateTransactionRequest,
     UpdateTransactionResponse,
 )
 from app.services.edit_session_service import EditSessionService
 
 router = APIRouter(prefix="/edit", tags=["edit"])
+
+
+def _coord_schema(coord) -> FieldCoordinateSchema | None:
+    if not coord:
+        return None
+    return FieldCoordinateSchema(
+        text=coord.text,
+        x=coord.x,
+        y=coord.y,
+        width=coord.width,
+        height=coord.height,
+        bbox=coord.bbox,
+        font=coord.font,
+        font_size=coord.font_size,
+    )
+
+
+def _entry_coordinates(entry) -> TransactionCoordinatesSchema | None:
+    c = entry.coordinates
+    if not c:
+        return None
+    return TransactionCoordinatesSchema(
+        date=_coord_schema(c.date),
+        description=_coord_schema(c.description),
+        debit=_coord_schema(c.debit),
+        credit=_coord_schema(c.credit),
+        balance=_coord_schema(c.balance),
+    )
 
 
 def _state_to_response(state: EditSessionState, *, debug: bool = False) -> SessionStateResponse:
@@ -52,8 +83,13 @@ def _state_to_response(state: EditSessionState, *, debug: bool = False) -> Sessi
                 propagation_affected=e.propagation_affected,
                 validation_warnings=e.validation_warnings,
                 row_bbox=e.row_bbox,
+                coordinates=_entry_coordinates(e),
+                font_metadata=e.font_metadata or {},
             )
             for e in state.entries
+        ],
+        edit_timeline=[
+            EditTimelineEventSchema.model_validate(t) for t in state.edit_timeline
         ],
         summary=summary,
         validation_passed=state.validation_passed,

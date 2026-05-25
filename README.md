@@ -2,7 +2,7 @@
 
 Production-grade foundation for an AI-powered **bank statement PDF editor** with typography-preserving edits, multi-bank support, and automatic balance recalculation.
 
-> **Phase 5** — Invisible typography-preserving PDF export. Prior phases feed coordinate + ledger edits.
+> **Phase 8** — Production hardening: JWT auth, audit logs, versioning, async exports. **Phase 7** added the editing workspace.
 
 ## Stack
 
@@ -34,8 +34,11 @@ financial-pdf-editor/
 # 1. Copy environment file
 cp .env.example .env
 
-# 2. Start all services
+# 2. Copy env (if missing) and start all services
+cp .env.example .env   # Windows: copy .env.example .env
 docker compose up --build
+# Or on Windows PowerShell:
+# .\scripts\docker-up.ps1
 ```
 
 | Service | URL |
@@ -43,7 +46,7 @@ docker compose up --build
 | Frontend | http://localhost:5173 |
 | Backend API | http://localhost:8000 |
 | API Docs | http://localhost:8000/docs |
-| PostgreSQL | localhost:5432 |
+| PostgreSQL | localhost:5433 (host; container uses 5432) |
 | Redis | localhost:6379 |
 
 ## Local development (without Docker)
@@ -64,6 +67,16 @@ cp ../.env.example ../.env
 alembic upgrade head
 python scripts/seed_demo_user.py
 uvicorn app.main:app --reload --port 8000
+```
+
+**OCR (Phase 6):** Install [Tesseract](https://github.com/tesseract-ocr/tesseract) on the host for scanned PDF fallback. Docker images include `tesseract-ocr` automatically.
+
+**Auth (Phase 8):** Demo login after `alembic upgrade head` + seed: `demo@pdfeditor.local` / `demo-password-change-me`. Set `AUTH_DISABLED=false` in production and use strong `JWT_SECRET_KEY`.
+
+```powershell
+cd backend
+alembic upgrade head
+python scripts/seed_demo_user.py
 ```
 
 ### Celery worker (optional)
@@ -99,7 +112,13 @@ See [`.env.example`](.env.example). Key variables:
 | GET | `/api/v1/statements` | List statements |
 | GET | `/api/v1/statements/{id}` | Get statement |
 | GET | `/api/v1/statements/{id}/extract` | Extract text + coordinates + fonts |
-| GET | `/api/v1/statements/{id}/transactions` | Parse transactions + validate balances |
+| GET | `/api/v1/statements/{id}/transactions` | Hybrid parse (native/OCR) + layout confidence |
+| GET | `/api/v1/statements/{id}/intelligence` | Layout analysis debug (columns, tables, OCR) |
+| POST | `/api/v1/auth/login` · `/register` · `/refresh` | JWT authentication |
+| POST | `/api/v1/exports/queue` | Async export job (Celery) |
+| GET | `/api/v1/versions/statement/{id}` | PDF version snapshots |
+| GET | `/api/v1/admin/stats` | Admin metrics (admin role) |
+| GET | `/api/v1/system-status` | Production health + queues |
 | POST | `/api/v1/edit/start-session` | Begin in-memory edit session |
 | POST | `/api/v1/edit/update-transaction` | Edit debit/credit/balance with propagation |
 | GET | `/api/v1/edit/session-state` | Current ledger + summaries |
@@ -132,13 +151,38 @@ cd backend && black app && ruff check app
 | Phase | Focus |
 |-------|--------|
 | 1 | Foundation |
-| 2 | PDF upload, viewer, coordinate extraction |
+| 2 | PDF upload, viewer, coordinate extraction ([docs/PHASE2.md](docs/PHASE2.md)) |
 | 3 | Transaction extraction + bank intelligence (this) |
 | 4 | Financial recalculation + invisible PDF edits |
 | 4 | Typography-preserving edits |
 | 5 | Export pipeline |
-| 6 | Multi-bank layouts |
-| 7 | Premium UI polish |
+| 6 | Multi-bank layout intelligence + OCR fallback |
+| 7 | Enterprise editing workspace + real-time PDF sync |
+| 8 | Auth, audit, versioning, async exports, rate limits, CI |
+| 9 | AI financial intelligence ([docs/PHASE9.md](docs/PHASE9.md)) |
+| 10 | Performance + cloud deployment ([docs/PHASE10.md](docs/PHASE10.md), [readiness](docs/PRODUCTION_READINESS_REPORT.md)) |
+| 11 | QA, stress testing, resilience ([docs/PHASE11.md](docs/PHASE11.md), [QA report](docs/QA_REPORT.md)) |
+| 12 | Staging, UAT, production cutover ([docs/PHASE12.md](docs/PHASE12.md), [release checklist](docs/RELEASE_CHECKLIST.md)) |
+
+### Phase 9 AI APIs
+
+- `GET /api/v1/ai/status?statement_id=`
+- `GET /api/v1/ai/categories?statement_id=`
+- `GET /api/v1/ai/anomalies?statement_id=`
+- `GET /api/v1/ai/insights?statement_id=`
+- `GET /api/v1/ai/confidence?statement_id=`
+- `POST /api/v1/ai/suggestions?statement_id=`
+- `GET /api/v1/ai/search?statement_id=&q=`
+- `POST /api/v1/ai/analyze/{statement_id}?async_mode=true`
+
+Frontend: **AI Insights** workspace tab, **AI** right-panel confidence, `/insights/:id` dashboard (Recharts).
+
+Smoke: `.\scripts\smoke_phase9.ps1` · Tests: `pytest tests/test_ai_intelligence.py`
+
+### Redis cache layer (operational)
+
+Modular cache: `backend/app/cache/` — [CACHE_PERFORMANCE_REPORT.md](docs/CACHE_PERFORMANCE_REPORT.md)  
+Admin: `GET /api/v1/admin/cache-stats` · Monitoring: `GET /api/v1/admin/monitoring` — see [OBSERVABILITY_SETUP.md](docs/OBSERVABILITY_SETUP.md)
 
 ## Scalability notes
 

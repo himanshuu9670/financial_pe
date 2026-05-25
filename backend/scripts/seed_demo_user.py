@@ -1,4 +1,4 @@
-"""Create demo user for development uploads (no auth in Phase 1)."""
+"""Create demo user for development (bcrypt password when auth enabled)."""
 
 import sys
 import uuid
@@ -8,10 +8,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import select
 
+from app.auth.password_manager import hash_password
 from app.core.database import SessionLocal
 from app.models import User
 
 DEMO_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+DEMO_PASSWORD = "demo-password-change-me"
 
 
 def seed() -> None:
@@ -19,17 +21,26 @@ def seed() -> None:
     try:
         existing = db.scalar(select(User).where(User.id == DEMO_USER_ID))
         if existing:
-            print("Demo user already exists")
+            if existing.hashed_password == "not-used-phase-1":
+                existing.hashed_password = hash_password(DEMO_PASSWORD)
+                existing.role = "admin"
+                db.commit()
+                print("Demo user password upgraded (admin role)")
+            else:
+                print("Demo user already exists")
             return
         user = User(
             id=DEMO_USER_ID,
             email="demo@pdfeditor.local",
-            full_name="Demo User",
-            hashed_password="not-used-phase-1",
+            full_name="Demo Admin",
+            hashed_password=hash_password(DEMO_PASSWORD),
+            role="admin",
+            is_superuser=True,
         )
         db.add(user)
         db.commit()
         print("Demo user created:", DEMO_USER_ID)
+        print("Login: demo@pdfeditor.local /", DEMO_PASSWORD)
     finally:
         db.close()
 

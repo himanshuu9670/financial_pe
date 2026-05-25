@@ -1,0 +1,96 @@
+# Production stack — use with .env.production
+name: statementforge-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: ../docker/Dockerfile.backend.prod
+    restart: always
+    env_file: ../../.env.production
+    volumes:
+      - pdf_storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  celery_worker:
+    build:
+      context: ../../backend
+      dockerfile: ../docker/Dockerfile.backend.prod
+    restart: always
+    env_file: ../../.env.production
+    command: >
+      celery -A app.workers.celery_app worker
+      -Q default,ocr,export,ai
+      --loglevel=info
+      --concurrency=2
+    volumes:
+      - pdf_storage:/app/storage
+    depends_on:
+      - backend
+      - redis
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: ../docker/Dockerfile.frontend.prod
+    restart: always
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    restart: always
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    restart: always
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  redis_data:
+  pdf_storage:

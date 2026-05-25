@@ -6,8 +6,11 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
-from app.ai_engine.models import FieldCoordinate
+if TYPE_CHECKING:
+    from app.shared.models import FieldCoordinate
+
 from app.pdf_engine.bbox_detector import infer_alignment_from_bbox
 from app.pdf_engine.edit_models import Alignment, TargetSpan, TypographySpec
 from app.pdf_engine.font_mapper import is_likely_bold, resolve_pymupdf_font
@@ -75,15 +78,29 @@ def format_amount_for_pdf(value: Decimal | str, template_text: str) -> str:
         return value.strip()
     if value is None:
         return ""
-
     use_grouping = "," in template_text
     abs_val = abs(value)
     sign = "-" if value < 0 else ""
 
     if use_grouping:
+        # Detect grouping style from the template: western (1,234,567) vs indian (12,34,567)
         int_part = int(abs_val)
+        # Examine template integer groups
+        left = template_text.split(".")[0]
+        groups = [g for g in left.split(",") if g != ""]
+        grouping_style = "western"
+        if len(groups) >= 2:
+            # If groups after the first are length 2, it's likely Indian grouping
+            tail_lengths = [len(g) for g in groups[1:]]
+            if all(l == 2 for l in tail_lengths):
+                grouping_style = "indian"
+
         frac = abs_val - int_part
-        s = f"{sign}{_indian_group(int_part)}.{int(int(round(frac * 100))):02d}"
+        if grouping_style == "indian":
+            s = f"{sign}{_indian_group(int_part)}.{int(int(round(frac * 100))):02d}"
+        else:
+            # western grouping
+            s = f"{sign}{int_part:,}.{int(int(round(frac * 100))):02d}"
         return s
 
     decimals = 2

@@ -5,10 +5,12 @@ Preserves spans, lines, blocks, and typography metadata.
 
 from __future__ import annotations
 
+import gc
 from pathlib import Path
 
 import fitz
 
+from app.core.config import get_settings
 from app.pdf_engine.font_detector import normalize_font_name, primary_font_from_spans
 from app.pdf_engine.models import DocumentExtraction, PageExtraction, TextBlock, TextSpan
 from app.pdf_engine.pdf_loader import open_pdf
@@ -96,14 +98,31 @@ def extract_document(
     total_span_count = 0
 
     try:
-        indices = page_numbers if page_numbers else list(range(1, doc.page_count + 1))
-        for num in indices:
-            if num < 1 or num > doc.page_count:
-                warnings.append(f"Skipped invalid page number: {num}")
-                continue
-            page_data = extract_page(doc[num - 1], num)
-            total_span_count += sum(len(b.spans) for b in page_data.blocks)
-            pages.append(page_data)
+        settings = get_settings()
+        batch_size = max(1, settings.pdf_page_batch_size)
+        max_pages = settings.pdf_max_pages_in_memory
+
+        if page_numbers:
+            indices = page_numbers
+        else:
+            indices = list(range(1, min(doc.page_count, max_pages) + 1))
+            if doc.page_count > max_pages:
+                warnings.append(
+                    f"Large PDF ({doc.page_count} pages): extracted first {max_pages} pages. "
+                    "Use ?pages= for incremental extraction."
+                )
+
+        for batch_start in range(0, len(indices), batch_size):
+            batch = indices[batch_start : batch_start + batch_size]
+            for num in batch:
+                if num < 1 or num > doc.page_count:
+                    warnings.append(f"Skipped invalid page number: {num}")
+                    continue
+                page_data = extract_page(doc[num - 1], num)
+                total_span_count += sum(len(b.spans) for b in page_data.blocks)
+                pages.append(page_data)
+            if len(indices) > batch_size:
+                gc.collect()
 
         is_likely_scanned = total_span_count < SCANNED_TEXT_THRESHOLD
         if is_likely_scanned:

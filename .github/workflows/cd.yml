@@ -1,0 +1,33 @@
+name: CD
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend prod image
+        run: docker build -f deployment/docker/Dockerfile.backend.prod -t statementforge-backend:ci ./backend
+      - name: Build frontend prod image
+        run: docker build -f deployment/docker/Dockerfile.frontend.prod -t statementforge-frontend:ci ./frontend
+
+  load-smoke:
+    runs-on: ubuntu-latest
+    needs: build-images
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates gnupg
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+      - name: Note
+        run: echo "Run k6 against deployed staging — see deployment/load/k6-smoke.js"

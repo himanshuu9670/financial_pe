@@ -6,12 +6,15 @@ from __future__ import annotations
 
 from decimal import Decimal
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from app.ai_engine.models import FieldCoordinate
 from app.financial_engine.models import LedgerEntry
 from app.pdf_engine.edit_models import TargetSpan
 from app.pdf_engine.typography_engine import build_target_span
 from app.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from app.shared.models import FieldCoordinate
 
 logger = get_logger(__name__)
 

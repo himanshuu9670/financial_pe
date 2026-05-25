@@ -1,5 +1,24 @@
 export type ChangeType = 'debit' | 'credit' | 'balance' | 'description' | 'date'
 
+export interface FieldCoordinate {
+  text: string
+  x: number
+  y: number
+  width: number
+  height: number
+  bbox: [number, number, number, number]
+  font: string
+  font_size: number
+}
+
+export interface TransactionCoordinates {
+  date?: FieldCoordinate | null
+  description?: FieldCoordinate | null
+  debit?: FieldCoordinate | null
+  credit?: FieldCoordinate | null
+  balance?: FieldCoordinate | null
+}
+
 export interface LedgerEntry {
   transaction_id: string
   row_index: number
@@ -14,6 +33,8 @@ export interface LedgerEntry {
   propagation_affected: boolean
   validation_warnings: string[]
   row_bbox: number[]
+  coordinates?: TransactionCoordinates | null
+  font_metadata?: Record<string, unknown>
 }
 
 export interface SummarySchema {
@@ -41,6 +62,15 @@ export interface DependencyNode {
   next_id: string | null
 }
 
+export interface EditTimelineEvent {
+  operation_id: string
+  timestamp: string
+  action: string
+  description: string
+  transaction_id: string | null
+  field: string | null
+}
+
 export interface SessionStateResponse {
   session_id: string
   statement_id: string
@@ -54,5 +84,8 @@ export interface SessionStateResponse {
   can_redo: boolean
   propagation_trace: PropagationTrace[]
   dependency_graph: DependencyNode[]
+  edit_timeline?: EditTimelineEvent[]
   debug?: Record<string, unknown> | null
 }
+
+export type EditableField = 'debit' | 'credit' | 'balance'

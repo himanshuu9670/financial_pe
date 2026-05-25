@@ -12,7 +12,10 @@ export function usePdfExtraction(statementId: string | undefined, enabled = true
     queryKey: ['extraction', statementId],
     queryFn: () => statementsApi.extract(statementId!).then((r) => r.data),
     enabled: Boolean(statementId) && enabled,
-    staleTime: 5 * 60_000,
+    staleTime: 30 * 60_000,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (previous) => previous,
   })
 
   useEffect(() => {

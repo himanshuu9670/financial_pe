@@ -55,6 +55,11 @@ export interface ParseDebugInfo {
   grouped_row_count: number
   raw_row_count: number
   header_row_index: number | null
+  extraction_mode?: string
+  layout_confidence?: number | null
+  ocr_confidence?: number | null
+  header_row_y?: number | null
+  bank_layout_version?: string | null
 }
 
 export interface TransactionsResponse {
@@ -66,4 +71,7 @@ export interface TransactionsResponse {
   cached: boolean
   warnings: string[]
   debug?: ParseDebugInfo | null
+  extraction_mode?: string
+  layout_confidence?: number | null
+  ocr_confidence?: number | null
 }

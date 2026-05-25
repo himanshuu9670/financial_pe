@@ -62,3 +62,9 @@ class Statement(Base):
     edit_history: Mapped[list["EditHistory"]] = relationship(  # noqa: F821
         back_populates="statement", cascade="all, delete-orphan"
     )
+    snapshots: Mapped[list["PdfSnapshot"]] = relationship(  # noqa: F821
+        back_populates="statement", cascade="all, delete-orphan"
+    )
+    export_jobs: Mapped[list["ExportJob"]] = relationship(  # noqa: F821
+        back_populates="statement", cascade="all, delete-orphan"
+    )

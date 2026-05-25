@@ -9,15 +9,10 @@ from collections import defaultdict
 from decimal import Decimal
 
 from app.ai_engine.bank_classifier import classify_bank
-from app.ai_engine.models import (
-    ParseDebugInfo,
-    StructuredTransaction,
-    TransactionParseResult,
-    TransactionSummary,
-)
+from app.ai_engine.models import ParseDebugInfo, TransactionParseResult
+from app.shared.models import StructuredTransaction, TransactionSummary
 from app.ai_engine.span_utils import flatten_spans
 from app.ai_engine.transaction_detector import detect_transactions_on_page
-from app.financial_engine.validator import validate_transactions
 from app.pdf_engine.models import DocumentExtraction
 from app.utils.logging import get_logger
 
@@ -55,6 +50,8 @@ def run_transaction_pipeline(
         if include_debug:
             all_columns.extend(columns)
             all_rows.extend(rows)
+
+    from app.financial_engine.validator import validate_transactions
 
     summary, validation_issues = validate_transactions(all_transactions)
     warnings: list[str] = list(validation_issues)

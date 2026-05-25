@@ -33,6 +33,25 @@ class CommitSessionRequest(BaseModel):
     notes: str | None = None
 
 
+class FieldCoordinateSchema(BaseModel):
+    text: str = ""
+    x: float = 0
+    y: float = 0
+    width: float = 0
+    height: float = 0
+    bbox: list[float] = Field(default_factory=list)
+    font: str = "Unknown"
+    font_size: float = 0.0
+
+
+class TransactionCoordinatesSchema(BaseModel):
+    date: FieldCoordinateSchema | None = None
+    description: FieldCoordinateSchema | None = None
+    debit: FieldCoordinateSchema | None = None
+    credit: FieldCoordinateSchema | None = None
+    balance: FieldCoordinateSchema | None = None
+
+
 class LedgerEntrySchema(BaseModel):
     transaction_id: str
     row_index: int
@@ -47,6 +66,17 @@ class LedgerEntrySchema(BaseModel):
     propagation_affected: bool = False
     validation_warnings: list[str] = Field(default_factory=list)
     row_bbox: list[float] = Field(default_factory=list)
+    coordinates: TransactionCoordinatesSchema | None = None
+    font_metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class EditTimelineEventSchema(BaseModel):
+    operation_id: str
+    timestamp: str
+    action: str
+    description: str
+    transaction_id: str | None = None
+    field: str | None = None
 
 
 class SummarySchema(BaseModel):
@@ -87,6 +117,7 @@ class SessionStateResponse(BaseModel):
     can_redo: bool
     propagation_trace: list[PropagationTraceSchema] = Field(default_factory=list)
     dependency_graph: list[DependencyNodeSchema] = Field(default_factory=list)
+    edit_timeline: list[EditTimelineEventSchema] = Field(default_factory=list)
     debug: dict[str, Any] | None = None
 
 

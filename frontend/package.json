@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@react-pdf-viewer/core": "^3.12.0",
@@ -24,6 +26,7 @@
     "react-dom": "^19.2.6",
     "react-pdf": "^10.4.1",
     "react-router-dom": "^7.15.1",
+    "recharts": "^2.15.0",
     "tailwind-merge": "^3.6.0",
     "zustand": "^5.0.13"
   },
@@ -45,6 +48,7 @@
     "tailwindcss": "^4.3.0",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
   }
 }

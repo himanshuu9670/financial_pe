@@ -75,16 +75,16 @@ export function TransactionTable({ onSelect }: TransactionTableProps) {
         ))}
       </div>
 
-      <div className="overflow-auto flex-1">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-[var(--color-surface-elevated)] z-10">
-            <tr className="text-left text-zinc-500 text-xs uppercase tracking-wider">
-              <th className="p-3 w-8" />
-              <th className="p-3">Date</th>
-              <th className="p-3">Description</th>
-              <th className="p-3 text-right">Debit</th>
-              <th className="p-3 text-right">Credit</th>
-              <th className="p-3 text-right">Balance</th>
+      <div className="overflow-auto flex-1 shadow-inner">
+        <table className="w-full min-w-full table-fixed text-sm border-separate border-spacing-0">
+          <thead className="sticky top-0 bg-zinc-950/95 backdrop-blur-md z-10">
+            <tr className="text-zinc-500 text-xs uppercase tracking-wider">
+              <th className="p-3 w-10 text-left" />
+              <th className="p-3 w-28 text-center">Date</th>
+              <th className="p-3 text-left">Description</th>
+              <th className="p-3 w-28 text-right">Debit</th>
+              <th className="p-3 w-28 text-right">Credit</th>
+              <th className="p-3 w-32 text-right">Balance</th>
             </tr>
           </thead>
           <tbody>
@@ -115,13 +115,14 @@ export function TransactionTable({ onSelect }: TransactionTableProps) {
                       onSelect?.(txn)
                     }}
                   >
-                    <td className="p-3 text-zinc-600">
+                    <td className="p-3 text-zinc-600 align-middle">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation()
                           setExpandedId(expanded ? null : txn.transaction_id)
                         }}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-zinc-400 hover:bg-white/5"
                       >
                         {expanded ? (
                           <ChevronDown className="w-4 h-4" />
@@ -130,23 +131,36 @@ export function TransactionTable({ onSelect }: TransactionTableProps) {
                         )}
                       </button>
                     </td>
-                    <td className="p-3 whitespace-nowrap text-zinc-300">{txn.date ?? '—'}</td>
-                    <td className="p-3 max-w-[220px]">
-                      <span className="line-clamp-2">{txn.description}</span>
+                    <td className="p-3 whitespace-nowrap text-center text-zinc-300 align-middle">
+                      {txn.date ?? '—'}
+                    </td>
+                    <td className="p-3 max-w-[24ch] sm:max-w-[36ch] align-middle">
+                      <span className="block text-zinc-200 text-sm leading-tight line-clamp-2 break-words">
+                        {txn.description}
+                      </span>
                       {hasWarnings && (
-                        <span className="flex items-center gap-1 text-amber-500 text-xs mt-1">
+                        <span className="flex items-center gap-1 text-amber-500 text-[11px] mt-1">
                           <AlertCircle className="w-3 h-3" />
                           {txn.validation_warnings[0]}
                         </span>
                       )}
                     </td>
-                    <td className="p-3 text-right text-red-400/90 font-mono text-xs">
+                    <td
+                      className="p-3 text-right text-red-400/90 font-mono text-xs align-middle"
+                      style={{ fontVariantNumeric: 'tabular-nums' }}
+                    >
                       {formatAmount(txn.debit)}
                     </td>
-                    <td className="p-3 text-right text-emerald-400/90 font-mono text-xs">
+                    <td
+                      className="p-3 text-right text-emerald-400/90 font-mono text-xs align-middle"
+                      style={{ fontVariantNumeric: 'tabular-nums' }}
+                    >
                       {formatAmount(txn.credit)}
                     </td>
-                    <td className="p-3 text-right font-mono text-xs text-zinc-300">
+                    <td
+                      className="p-3 text-right font-mono text-xs text-zinc-300 align-middle"
+                      style={{ fontVariantNumeric: 'tabular-nums' }}
+                    >
                       {formatAmount(txn.balance)}
                     </td>
                   </motion.tr>
@@ -156,7 +170,7 @@ export function TransactionTable({ onSelect }: TransactionTableProps) {
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <p className="text-center py-8 text-zinc-500 text-sm">No transactions match filters.</p>
+          <div className="p-6 text-center text-zinc-500 text-sm">No transactions match filters.</div>
         )}
       </div>
 

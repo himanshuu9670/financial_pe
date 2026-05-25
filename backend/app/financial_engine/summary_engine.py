@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from app.ai_engine.models import TransactionSummary
+from app.shared.models import TransactionSummary
 from app.financial_engine.models import LedgerEntry
 
 

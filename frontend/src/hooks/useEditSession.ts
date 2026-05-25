@@ -6,6 +6,7 @@ import type { ChangeType } from '@/types/editSession'
 
 export function useEditSession(statementId: string | undefined) {
   const sessionId = useEditSessionStore((s) => s.sessionId)
+  const activeStatementId = useEditSessionStore((s) => s.statementId)
   const setSession = useEditSessionStore((s) => s.setSession)
   const setState = useEditSessionStore((s) => s.setState)
   const setLoading = useEditSessionStore((s) => s.setLoading)
@@ -22,11 +23,20 @@ export function useEditSession(statementId: string | undefined) {
   })
 
   useEffect(() => {
-    if (statementId && !sessionId && !startMutation.isPending && !startMutation.isSuccess) {
+    // If there's no active session, or the active session belongs to a different
+    // statement than the one requested, clear and start a new edit session.
+    if (!statementId) return
+
+    const needsNewSession =
+      !sessionId || (activeStatementId != null && activeStatementId !== statementId)
+
+    if (needsNewSession && !startMutation.isPending && !startMutation.isSuccess) {
+      // Clear any stale session state so the new session starts cleanly
+      if (sessionId) useEditSessionStore.getState().clear()
       startMutation.mutate()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statementId])
+  }, [statementId, sessionId, activeStatementId])
 
   const stateQuery = useQuery({
     queryKey: ['edit-session', sessionId, debugMode],

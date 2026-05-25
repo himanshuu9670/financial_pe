@@ -4,9 +4,11 @@ from datetime import date, datetime, timezone
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from app.ai_engine import run_transaction_pipeline
-from app.ai_engine.models import StructuredTransaction, TransactionParseResult
+from app.ai_layout_engine.hybrid_pipeline import hybrid_extract_document, run_intelligent_pipeline
+from app.shared.models import StructuredTransaction
+from app.ai_engine.models import TransactionParseResult
 from app.models import Transaction
+from app.cache import extraction_cache, invalidate_ai_only, invalidate_statement
 from app.services.pdf_extraction_service import PdfExtractionService
 from app.utils.logging import get_logger
 
@@ -44,6 +46,21 @@ class TransactionService:
         if not statement:
             raise ValueError("Statement not found")
 
+        if force_refresh:
+            invalidate_statement(str(statement_id))
+
+        path = self.pdf_extraction.statements.get_pdf_path(statement)
+        if not path:
+            raise ValueError("PDF file not found on disk")
+
+        if not force_refresh:
+            redis_parse = extraction_cache.get_transaction_parse(str(statement_id), path)
+            if redis_parse:
+                cached = TransactionParseResult.model_validate(redis_parse)
+                db_count = len(statement.transactions) if statement.transactions else 0
+                if db_count > 0 or len(cached.transactions) > 0:
+                    return cached, True
+
         meta = statement.metadata_json or {}
         cache_key = "transaction_parse"
         if not force_refresh and cache_key in meta:
@@ -52,19 +69,36 @@ class TransactionService:
             if db_count > 0 or len(cached.transactions) > 0:
                 return cached, True
 
-        document, _ = self.pdf_extraction.extract(statement_id, force_refresh=False)
-        result = run_transaction_pipeline(document, include_debug=include_debug)
+        document, mode, ocr_conf, _scan = hybrid_extract_document(
+            path,
+            statement_id=str(statement_id),
+        )
+        statement.extraction_json = document.model_dump()
+        statement.extracted_at = datetime.now(timezone.utc)
+
+        result, _layout, _intel = run_intelligent_pipeline(
+            document,
+            extraction_mode=mode,
+            ocr_confidence=ocr_conf,
+            include_debug=include_debug,
+        )
 
         statement.bank_name = result.bank.replace("_", " ").title()
         statement.opening_balance = result.summary.opening_balance
         statement.closing_balance = result.summary.closing_balance
         statement.status = "ready"
 
-        meta[cache_key] = result.model_dump(mode="json")
+        parse_payload = result.model_dump(mode="json")
+        meta[cache_key] = parse_payload
+        extraction_cache.set_transaction_parse(str(statement_id), path, parse_payload)
+        meta["extraction_mode"] = result.extraction_mode
+        meta["layout_confidence"] = result.layout_confidence
+        meta["ocr_confidence"] = result.ocr_confidence
         meta["transaction_parsed_at"] = datetime.now(timezone.utc).isoformat()
         statement.metadata_json = meta
 
         self._persist_transactions(statement_id, result.transactions)
+        invalidate_ai_only(str(statement_id))
         self.db.commit()
         self.db.refresh(statement)
 

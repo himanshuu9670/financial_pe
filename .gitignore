@@ -1,5 +1,7 @@
 # Environment
 .env
+.env.staging
+.env.production
 .env.local
 *.env.local
 

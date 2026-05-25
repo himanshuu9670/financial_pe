@@ -44,7 +44,7 @@ export function HomePage() {
           label="Statements"
           value="—"
           icon={FileText}
-          trend="Phase 2: auto-detection"
+          trend="Auto-detection enabled"
           accent="indigo"
           delay={0.05}
         />
@@ -62,24 +62,33 @@ export function HomePage() {
         <GlassCard delay={0.15}>
           <h2 className="text-lg font-semibold mb-2">Quick start</h2>
           <p className="text-sm text-zinc-500 mb-6">
-            Upload a bank statement PDF. Extraction and editing activate in upcoming phases.
+            Upload a statement, then open the enterprise workspace for click-to-edit PDF sync.
           </p>
-          <Link
-            to="/statements"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-medium transition-colors"
-          >
-            Go to Statements
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/workspace"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-medium transition-colors"
+            >
+              Open Workspace
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              to="/statements"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/10 text-sm hover:bg-white/5"
+            >
+              Statements
+            </Link>
+          </div>
         </GlassCard>
 
         <GlassCard delay={0.2}>
-          <h2 className="text-lg font-semibold mb-2">Architecture</h2>
+          <h2 className="text-lg font-semibold mb-2">Core capabilities</h2>
           <ul className="text-sm text-zinc-500 space-y-2">
-            <li>· PDF engine — coordinate extraction (Phase 2)</li>
-            <li>· Financial engine — balance recalculation (Phase 3)</li>
-            <li>· Typography engine — invisible edits (Phase 4)</li>
-            <li>· Multi-bank layout profiles (Phase 6)</li>
+            <li>· Coordinate-aware PDF extraction with layout fidelity</li>
+            <li>· Balance reconciliation and transaction validation</li>
+            <li>· Typography-preserving statement edits</li>
+            <li>· Multi-bank layout intelligence and OCR resilience</li>
+            <li>· Real-time transaction workflow with export-ready output</li>
           </ul>
         </GlassCard>
       </div>

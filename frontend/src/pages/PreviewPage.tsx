@@ -26,7 +26,7 @@ export function PreviewPage() {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-2xl font-bold tracking-tight">PDF Preview & Extraction</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Coordinate-aware viewer — typography metadata for invisible editing (Phase 4+)
+          Review the PDF preview and extracted statement metadata with overlay controls.
         </p>
       </motion.div>
 

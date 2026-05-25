@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from app.ai_engine.models import StructuredTransaction, TransactionCoordinates, TransactionSummary
+from app.shared.models import StructuredTransaction, TransactionCoordinates, TransactionSummary
 
 
 class ChangeType(str, Enum):
@@ -68,7 +68,7 @@ class LedgerEntry(BaseModel):
         )
 
     def to_structured(self) -> StructuredTransaction:
-        from app.ai_engine.models import FontMetadata
+        from app.shared.models import FontMetadata
 
         return StructuredTransaction(
             transaction_id=self.transaction_id,
@@ -149,3 +149,4 @@ class EditSessionState(BaseModel):
     can_undo: bool = False
     can_redo: bool = False
     propagation_trace: list[PropagationTrace] = Field(default_factory=list)
+    edit_timeline: list[dict[str, Any]] = Field(default_factory=list)

@@ -1,1 +1,3 @@
-"""Authentication and authorization — Phase 2+."""
+from app.auth.password_manager import hash_password, verify_password
+
+__all__ = ["hash_password", "verify_password"]

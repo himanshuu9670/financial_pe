@@ -6,6 +6,7 @@ from fastapi import UploadFile
 
 from app.core.config import get_settings
 from app.pdf_engine.pdf_loader import validate_pdf_bytes
+from app.utils.path_security import safe_filename
 
 
 class StorageService:
@@ -57,7 +58,8 @@ class StorageService:
         return str(dest), dest, len(content)
 
     def path_for_edited(self, statement_id: uuid.UUID, filename: str) -> Path:
-        return self.settings.storage_edited / f"{statement_id}_{filename}"
+        safe = safe_filename(filename)
+        return self.settings.storage_edited / f"{statement_id}_{safe}"
 
     def path_for_preview(self, statement_id: uuid.UUID) -> Path:
         return self.settings.storage_previews / f"{statement_id}.png"

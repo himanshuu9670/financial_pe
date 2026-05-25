@@ -39,10 +39,6 @@ export function EditModeExplorer({ statementId }: EditModeExplorerProps) {
   const setDebugMode = useEditSessionStore((s) => s.setDebugMode)
   const selectTransaction = useTransactionStore((s) => s.selectTransaction)
 
-  useEffect(() => {
-    return () => useEditSessionStore.getState().clear()
-  }, [])
-
   if (loading && !state) {
     return (
       <div className="flex items-center justify-center py-24 text-zinc-500">

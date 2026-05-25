@@ -1,5 +1,5 @@
 import type { RenderPageProps } from '@react-pdf-viewer/core'
-import { useMemo, type ReactElement } from 'react'
+import { memo, useMemo, type ReactElement } from 'react'
 import type { PageExtraction, TextSpan } from '@/types/extraction'
 import { usePdfStore } from '@/store/usePdfStore'
 import { blockLabel, pdfBboxToViewport } from '@/utils/coordinates'
@@ -16,7 +16,7 @@ function spanId(page: number, bi: number, si: number) {
   return `${page}-${bi}-${si}`
 }
 
-export function ExtractionOverlay({ pageIndex, scale, pageData, enabled }: ExtractionOverlayProps) {
+function ExtractionOverlayInner({ pageIndex, scale, pageData, enabled }: ExtractionOverlayProps) {
   const showOverlayStore = usePdfStore((s) => s.showOverlay)
   const showOverlay = enabled ?? showOverlayStore
   const hoveredSpanId = usePdfStore((s) => s.hoveredSpanId)
@@ -79,6 +79,8 @@ export function ExtractionOverlay({ pageIndex, scale, pageData, enabled }: Extra
     </div>
   )
 }
+
+export const ExtractionOverlay = memo(ExtractionOverlayInner)
 
 export function renderPageWithOverlay(
   pageDataByIndex: Map<number, PageExtraction>,

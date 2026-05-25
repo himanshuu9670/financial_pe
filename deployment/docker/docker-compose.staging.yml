@@ -1,0 +1,124 @@
+# Staging stack — UAT and pre-production validation
+# Usage (from repo root):
+#   cp .env.staging.example .env.staging
+#   docker compose -f deployment/docker/docker-compose.staging.yml --env-file .env.staging up -d --build
+
+name: statementforge-staging
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - staging_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - staging_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: ../docker/Dockerfile.backend.prod
+    restart: unless-stopped
+    env_file:
+      - ../../.env.staging
+    environment:
+      APP_ENV: staging
+      AUTH_DISABLED: ${AUTH_DISABLED:-false}
+    volumes:
+      - staging_pdf_storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             python /app/scripts/seed_demo_user.py &&
+             exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+
+  celery_worker:
+    build:
+      context: ../../backend
+      dockerfile: ../docker/Dockerfile.backend.prod
+    restart: unless-stopped
+    env_file:
+      - ../../.env.staging
+    command: >
+      celery -A app.workers.celery_app worker
+      -Q default,ocr,export,ai
+      --loglevel=info
+      --concurrency=2
+    volumes:
+      - staging_pdf_storage:/app/storage
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: ../docker/Dockerfile.frontend.prod
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      # For TLS: also map 443:443 and use deployment/nginx/nginx.tls.conf
+    volumes:
+      - ../nginx/nginx.staging.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/ssl-params.conf:/etc/nginx/ssl-params.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+      - frontend
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    restart: unless-stopped
+    volumes:
+      - ../prometheus/prometheus.staging.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-changeme}
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3001}
+    ports:
+      - "3001:3000"
+    volumes:
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  staging_postgres_data:
+  staging_redis_data:
+  staging_pdf_storage:

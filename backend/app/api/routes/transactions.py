@@ -65,4 +65,7 @@ def get_statement_transactions(
         cached=cached,
         warnings=result.warnings,
         debug=result.debug if debug else None,
+        extraction_mode=result.extraction_mode,
+        layout_confidence=result.layout_confidence,
+        ocr_confidence=result.ocr_confidence,
     )

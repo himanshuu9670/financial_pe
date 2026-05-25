@@ -3,6 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.config import get_settings
 from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -32,7 +33,10 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         logger.error("unhandled_error", path=request.url.path, error=str(exc))
+        detail = "Internal server error"
+        if get_settings().debug:
+            detail = f"{detail}: {exc}"
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": "Internal server error"},
+            content={"detail": detail},
         )

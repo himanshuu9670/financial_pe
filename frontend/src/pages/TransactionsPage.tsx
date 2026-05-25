@@ -27,7 +27,7 @@ export function TransactionsPage() {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-2xl font-bold tracking-tight">Transaction Intelligence</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Structured parsing with PDF ↔ table sync — financial recalculation in Phase 4
+          Structured transaction parsing with tight PDF-to-ledger sync and balance validation.
         </p>
       </motion.div>
 

@@ -18,9 +18,15 @@
 |--------|----------------|-------|
 | `pdf_engine/` | Coordinate extraction, region mapping | 2 |
 | `typography_engine/` | Font metadata, invisible text replacement | 4 |
-| `ai_engine/` | Bank detection, layout classification | 6+ |
+| `ai_engine/` | Transaction parsing, column/row detection | 3+ |
+| `ai_layout_engine/` | Multi-bank signatures, table/column layout, hybrid pipeline | 6 |
+| `ocr_engine/` | Scanned PDF detection, OpenCV preprocess, Tesseract OCR | 6 |
+| `ai_intelligence/` | Categorization, anomalies, fraud, embeddings, insights | 9 |
+| `core/cache/` | Redis hot cache (extraction, AI) | 10 |
+| `monitoring/` | Prometheus metrics, health, tracing, OCR/export/redis/worker observability | 10+ |
+| `core/observability/` | Sentry + metrics re-exports | 10 |
 | `services/` | Orchestration, storage, statements | 1+ |
-| `workers/` | Async PDF/OCR pipelines | 2+ |
+| `workers/` | Async PDF/OCR/AI pipelines (queued) | 2+ |
 
 ## Storage layout
 
@@ -132,9 +138,67 @@ Ledger changes (Phase 4)
 | `overlay_renderer.py` | Vector-safe PyMuPDF calls |
 | `export_engine.py` | Full export orchestration |
 | `visual_validator.py` | Post-export QA |
-| `scanned_fallback.py` | OCR path stub |
+| `scanned_fallback.py` | Legacy stub — superseded by `ocr_engine/` |
 
 API: `POST /api/v1/export/apply-edits` · `GET /preview/{id}/edited`
+
+## AI document intelligence (Phase 6)
+
+```
+PDF upload
+    → scanned_pdf_detector (text density / image ratio)
+    ├── native: pdf_engine.extract_document
+    └── OCR: ocr_processor (render → preprocess → Tesseract → coordinate_rebuilder)
+    → layout_detector (bank_signature, table_detector, column_mapper, row_segmenter)
+    → run_transaction_pipeline + confidence_engine
+    → financial validator
+```
+
+| Module | Role |
+|--------|------|
+| `bank_signature_engine.py` | Keyword/header fingerprints (YES, AXIS, HDFC, SBI, ICICI, PNB, …) |
+| `table_detector.py` | Transaction region bboxes |
+| `column_mapper.py` | Spatial column clustering (no fixed coordinates) |
+| `hybrid_pipeline.py` | Native/OCR routing + in-memory OCR cache |
+| `confidence_engine.py` | Per-transaction + layout scores |
+
+API: `GET /api/v1/statements/{id}/intelligence` · transactions endpoint uses hybrid pipeline by default
+
+Frontend: `/intelligence/:id` — layout overlays (tables, columns, row segments) + debug panel
+
+## Enterprise editing workspace (Phase 7)
+
+```
+Edit session (REST) + optional WebSocket /ws/edit/{session_id}
+    → Zustand: workspace, pdf, transactions, edit session
+    → PDFCanvas: SelectionLayer + OverlayEditor (click-to-edit amounts)
+    → LivePreviewLayer: instant value overlay on PDF
+    → VirtualizedLedgerTable ↔ bidirectional highlight sync
+    → Financial recalc → propagation flash + validation panel
+```
+
+| Route | Purpose |
+|-------|---------|
+| `/workspace/:id` | Multi-panel editing workspace |
+| `/compare/:id` | Original vs edited PDF |
+| `/history/:id` | Edit timeline + propagation |
+| `/validation/:id` | Live ledger validation |
+
+WebSocket foundation: subscribe/ping only; collaboration not enabled yet.
+
+## Production infrastructure (Phase 8)
+
+| Module | Role |
+|--------|------|
+| `auth/` | JWT access + refresh, RBAC (admin/editor/viewer) |
+| `audit/` | Immutable audit log for uploads, edits, exports, auth |
+| `services/version_service.py` | PDF snapshots under `storage/snapshots/` |
+| `services/export_job_service.py` | Celery-backed export queue + secure download tokens |
+| `services/storage_optimizer.py` | Temp cleanup, disk usage metrics |
+| `api/middleware/security_headers.py` | HSTS, nosniff, frame deny |
+| `api/middleware/rate_limit.py` | slowapi limits on upload/auth/export |
+
+Production checklist: `AUTH_DISABLED=false`, rotate `JWT_SECRET_KEY`, run Celery worker, `alembic upgrade head`.
 
 ## Design principles
 

@@ -40,6 +40,13 @@ class PdfExportService:
         if not source:
             raise ValueError("Original PDF not found")
 
+        # Log current metadata keys to trace whether a committed session is present
+        try:
+            meta_keys = list((statement.metadata_json or {}).keys())
+        except Exception:
+            meta_keys = []
+        logger.info("export_resolve_start", statement_id=str(statement_id), metadata_keys=meta_keys, session_id=session_id)
+
         entries, bank = self._resolve_entries(statement_id, session_id, statement.metadata_json)
 
         output = self.settings.storage_edited / f"{statement_id}.pdf"
@@ -64,6 +71,11 @@ class PdfExportService:
             "validation_passed": result.validation.passed,
         }
         statement.metadata_json = meta
+        try:
+            self.db.flush()
+            self.db.refresh(statement)
+        except Exception:
+            logger.warning("export_flush_refresh_failed", statement_id=str(statement.id))
         self.db.commit()
         self.db.refresh(statement)
 
@@ -82,15 +94,27 @@ class PdfExportService:
                     raise ValueError("Session does not match statement")
                 return bundle.recalculator.entries, bundle.bank
             edit_svc = EditSessionService(self.db)
-            state = edit_svc.get_state(session_id)
-            if str(statement_id) != state.statement_id:
-                raise ValueError("Session does not match statement")
-            return state.entries, state.bank
+            try:
+                state = edit_svc.get_state(session_id)
+                if str(statement_id) != state.statement_id:
+                    raise ValueError("Session does not match statement")
+                return state.entries, state.bank
+            except ValueError as exc:
+                if str(exc) == "Edit session not found or expired":
+                    logger.warning(
+                        "edit_session_not_found_falling_back_to_committed",
+                        session_id=session_id,
+                        statement_id=str(statement_id),
+                    )
+                else:
+                    raise
 
         meta = metadata or {}
         if "committed_edit_session" in meta:
-            raw = meta["committed_edit_session"].get("entries", [])
-            return [LedgerEntry.model_validate(e) for e in raw], meta.get("bank", "UNKNOWN")
+            committed_meta = meta["committed_edit_session"] or {}
+            raw = committed_meta.get("entries", [])
+            bank = committed_meta.get("bank") or meta.get("bank", "UNKNOWN")
+            return [LedgerEntry.model_validate(e) for e in raw], bank
 
         if session_id:
             raise ValueError("Edit session not found — start session or commit first")

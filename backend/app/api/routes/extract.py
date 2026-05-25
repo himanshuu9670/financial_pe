@@ -1,9 +1,11 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db_session
+from app.api.middleware.rate_limit import limiter
+from app.core.config import get_settings
 from app.pdf_engine.exceptions import PdfEncryptedError, PdfEngineError, PdfValidationError
 from app.schemas.extraction import ExtractionResponse
 from app.services.pdf_extraction_service import PdfExtractionService
@@ -23,7 +25,9 @@ def _parse_pages(pages: str | None) -> list[int] | None:
 
 
 @router.get("/statements/{statement_id}/extract", response_model=ExtractionResponse)
+@limiter.limit(lambda: get_settings().rate_limit_extract)
 def extract_statement(
+    request: Request,
     statement_id: uuid.UUID,
     pages: str | None = Query(default=None, description="Comma-separated page numbers"),
     refresh: bool = Query(default=False, description="Force re-extraction"),

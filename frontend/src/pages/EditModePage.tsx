@@ -1,8 +1,7 @@
 import { motion } from 'framer-motion'
 import { useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { EditModeExplorer } from '@/components/edit/EditModeExplorer'
-import { Link } from 'react-router-dom'
 import { UploadZone } from '@/components/pdf/UploadZone'
 import { statementsApi } from '@/services/api'
 import { useAppStore } from '@/store/useAppStore'
@@ -26,7 +25,11 @@ export function EditModePage() {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-2xl font-bold tracking-tight">Financial Edit Mode</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Live recalculation with dependency propagation — PDF unchanged until export (Phase 5)
+          Legacy edit view — use{' '}
+          <Link to={`/workspace/${statementId ?? ''}`} className="text-indigo-400">
+            Workspace
+          </Link>{' '}
+          for click-to-edit PDF sync and statement review.
         </p>
       </motion.div>
 

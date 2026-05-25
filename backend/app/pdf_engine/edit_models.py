@@ -33,6 +33,14 @@ class TargetSpan(BaseModel):
     typography: TypographySpec
     pymupdf_font: str = "helv"
 
+    @property
+    def font(self) -> str:
+        """Compatibility accessor for legacy code and tests expecting `font`.
+
+        Returns the human-facing font name from the `typography` spec.
+        """
+        return getattr(self.typography, "font", "")
+
 
 class TextReplacementTarget(BaseModel):
     """Resolved target for overlay replacement."""

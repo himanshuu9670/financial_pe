@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from app.ai_engine.models import FieldCoordinate, TransactionCoordinates
+from app.shared.models import FieldCoordinate, TransactionCoordinates
 from app.financial_engine.models import LedgerEntry
 from app.pdf_engine.editor import collect_targets_from_ledger
 from app.pdf_engine.typography_engine import format_amount_for_pdf

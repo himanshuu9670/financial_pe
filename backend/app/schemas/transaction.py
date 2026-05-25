@@ -51,3 +51,6 @@ class TransactionsListResponse(BaseModel):
     cached: bool = False
     warnings: list[str] = Field(default_factory=list)
     debug: ParseDebugInfo | None = None
+    extraction_mode: str = "native"
+    layout_confidence: float | None = None
+    ocr_confidence: float | None = None

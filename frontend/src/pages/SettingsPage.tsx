@@ -23,7 +23,7 @@ export function SettingsPage() {
           </div>
           <div className="flex justify-between gap-4 py-2">
             <dt className="text-zinc-500">Build</dt>
-            <dd>Phase 1 Foundation</dd>
+            <dd>Production-ready release</dd>
           </div>
         </dl>
       </GlassCard>

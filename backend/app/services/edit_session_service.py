@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.database.redis_client import get_redis
 from app.financial_engine.audit_engine import AuditStack, apply_patches, create_inverse_patches
@@ -144,15 +145,25 @@ class EditSessionService:
         summary = bundle.recalculator.get_summary()
         valid, issues = bundle.recalculator.validate()
 
-        meta = statement.metadata_json or {}
+        meta = dict(statement.metadata_json or {})
         meta["committed_edit_session"] = {
             "session_id": session_id,
+            "bank": bundle.bank,
             "committed_at": datetime.now(timezone.utc).isoformat(),
             "entries": [e.model_dump(mode="json") for e in bundle.recalculator.entries],
             "summary": summary.model_dump(mode="json"),
             "validation_passed": valid,
         }
         statement.metadata_json = meta
+        flag_modified(statement, "metadata_json")
+        # Debug trace: log the in-memory meta right after assignment (before snapshots/audit)
+        try:
+            keys_now = list((statement.metadata_json or {}).keys())
+            committed_now = "committed_edit_session" in (statement.metadata_json or {})
+        except Exception:
+            keys_now = []
+            committed_now = False
+        logger.info("commit_metadata_in_memory", statement_id=str(statement.id), metadata_keys=keys_now, committed_present=committed_now, committed_entries_count=len(meta.get("committed_edit_session", {}).get("entries", []) if meta.get("committed_edit_session") else 0))
         statement.opening_balance = summary.opening_balance
         statement.closing_balance = summary.closing_balance
 
@@ -171,7 +182,44 @@ class EditSessionService:
                 )
             )
         statement.version += 1
+
+        from pathlib import Path
+        from app.audit import AuditService
+        from app.services.version_service import VersionService
+
+        pdf_path = StatementService(self.db).get_pdf_path(statement)
+        if pdf_path and Path(pdf_path).exists():
+            VersionService(self.db).create_snapshot(
+                statement,
+                Path(pdf_path),
+                snapshot_type="edit_commit",
+                metadata=meta.get("committed_edit_session"),
+                notes=notes,
+            )
+
+        AuditService(self.db).log(
+            "edit.commit",
+            statement_id=bundle.statement_id,
+            resource_id=session_id,
+            details={"modified_count": len(modified), "validation_passed": valid},
+            message=notes,
+        )
+        self._persist_session(bundle)
+        # Ensure metadata is flushed and visible to other DB sessions/processes
+        try:
+            self.db.flush()
+            self.db.refresh(statement)
+        except Exception:
+            # best-effort flush/refresh — do not fail the commit flow
+            logger.warning("commit_flush_refresh_failed", statement_id=str(statement.id))
         self.db.commit()
+
+        # Log the metadata keys written for easier tracing
+        try:
+            keys = list((statement.metadata_json or {}).keys())
+        except Exception:
+            keys = []
+        logger.info("commit_metadata_written", statement_id=str(statement.id), metadata_keys=keys, committed_present=("committed_edit_session" in (statement.metadata_json or {})))
 
         logger.info("edit_session_committed", session_id=session_id)
         return self._build_state(bundle)
@@ -182,6 +230,27 @@ class EditSessionService:
         modified_count = sum(
             1 for e in bundle.recalculator.entries if e.is_modified or e.propagation_affected
         )
+
+        timeline: list[dict] = []
+        for record in bundle.audit.audit_log[-50:]:
+            desc = record.action
+            txn_id = None
+            field = None
+            if record.patches:
+                p = record.patches[0]
+                txn_id = p.transaction_id
+                field = p.field.value if hasattr(p.field, "value") else str(p.field)
+                desc = f"{record.action}: {field} on {txn_id}"
+            timeline.append(
+                {
+                    "operation_id": record.operation_id,
+                    "timestamp": record.timestamp.isoformat(),
+                    "action": record.action,
+                    "description": desc,
+                    "transaction_id": txn_id,
+                    "field": field,
+                }
+            )
 
         state = EditSessionState(
             session_id=bundle.session_id,
@@ -197,6 +266,7 @@ class EditSessionService:
             can_undo=bundle.audit.can_undo,
             can_redo=bundle.audit.can_redo,
             propagation_trace=bundle.last_traces,
+            edit_timeline=timeline,
         )
         return state
 

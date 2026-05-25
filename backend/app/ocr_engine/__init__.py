@@ -1,15 +1,9 @@
-"""
-OCR Engine — Phase 4+ foundation for scanned bank statements.
+from app.ocr_engine.ocr_processor import TesseractOcrProcessor, ocr_extract_document
+from app.ocr_engine.scanned_pdf_detector import ScanDetectionResult, detect_scanned_pdf
 
-Pipeline (future):
-  PDF page image → OpenCV preprocess → Tesseract → span injection → transaction pipeline
-
-Implementations:
-  - ocr_engine.preprocessor: deskew, denoise, binarize
-  - ocr_engine.tesseract_runner: OCR with bounding boxes
-  - ocr_engine.span_adapter: convert OCR boxes to TextSpan format
-"""
-
-from app.ocr_engine.base import OcrEngineBase, OcrResult
-
-__all__ = ["OcrEngineBase", "OcrResult"]
+__all__ = [
+    "TesseractOcrProcessor",
+    "ocr_extract_document",
+    "ScanDetectionResult",
+    "detect_scanned_pdf",
+]

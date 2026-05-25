@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db_session
+from app.api.middleware.rate_limit import limiter
+from app.auth.dependencies import get_current_user
+from app.audit import AuditService
+from app.models import User
+from app.core.config import get_settings
 from app.pdf_engine.exceptions import PdfEncryptedError, PdfEngineError, PdfValidationError
 from app.schemas.statement import UploadResponse
 from app.services.statement_service import StatementService
@@ -12,9 +17,12 @@ logger = get_logger(__name__)
 
 
 @router.post("", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit(lambda: get_settings().rate_limit_upload)
 async def upload_statement(
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user),
 ) -> UploadResponse:
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
@@ -22,7 +30,15 @@ async def upload_statement(
     service = StatementService(db)
 
     try:
-        statement = await service.create_from_upload(file)
+        statement = await service.create_from_upload(file, user_id=user.id)
+        AuditService(db).log(
+            "statement.upload",
+            user_id=user.id,
+            statement_id=statement.id,
+            details={"filename": statement.original_filename, "size": statement.file_size_bytes},
+            request=request,
+        )
+        db.commit()
     except PdfEncryptedError:
         raise HTTPException(
             status_code=400,

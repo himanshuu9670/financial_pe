@@ -1,14 +1,18 @@
 import { motion } from 'framer-motion'
 import {
+  Brain,
   FileText,
   Table2,
   Home,
   PanelLeftClose,
   PanelLeft,
   Pencil,
+  LayoutDashboard,
   FileOutput,
   Settings,
+  Shield,
   Sparkles,
+  LineChart,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useAppStore } from '@/store/useAppStore'
@@ -18,10 +22,14 @@ const navItems = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/statements', icon: FileText, label: 'Statements' },
   { to: '/transactions', icon: Table2, label: 'Transactions' },
+  { to: '/intelligence', icon: Brain, label: 'AI Intelligence' },
+  { to: '/insights', icon: LineChart, label: 'AI Insights' },
   { to: '/preview', icon: Sparkles, label: 'Preview' },
+  { to: '/workspace', icon: LayoutDashboard, label: 'Workspace' },
   { to: '/edit', icon: Pencil, label: 'Edit Mode' },
   { to: '/export', icon: FileOutput, label: 'Export' },
   { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/admin', icon: Shield, label: 'Admin' },
 ]
 
 export function Sidebar() {
