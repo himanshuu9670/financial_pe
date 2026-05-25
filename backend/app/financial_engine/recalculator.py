@@ -48,7 +48,7 @@ class FinancialRecalculator:
 
         traces: list[PropagationTrace] = []
         if field in (ChangeType.DEBIT, ChangeType.CREDIT):
-            traces = propagate_balances(self.entries, idx, self.opening_balance)
+            traces = propagate_balances(self.entries, 0, self.opening_balance)
         elif field == ChangeType.BALANCE:
             traces = propagate_balances(self.entries, idx + 1, self.opening_balance)
 
@@ -65,7 +65,7 @@ class FinancialRecalculator:
         )
         self.entries.pop(idx)
         self.graph = build_dependency_graph(self.entries, self.opening_balance)
-        propagate_balances(self.entries, max(0, idx), self.opening_balance)
+        propagate_balances(self.entries, 0, self.opening_balance)
         return [patch]
 
     def get_summary(self):

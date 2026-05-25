@@ -71,6 +71,22 @@ def test_balance_mismatch_detected():
     assert len(issues) > 0
 
 
+def test_strict_row_by_row_balance_recalculation_with_skipped_rows():
+    entries = [
+        _entry("t1", 0, "1000", None, "9000"),
+        LedgerEntry(transaction_id="blank", row_index=1, page=1),
+        _entry("t2", 2, "500", None, "8500"),
+    ]
+    opening = Decimal("10000")
+    propagate_balances(entries, 0, opening, mark_affected=False)
+
+    recalc = FinancialRecalculator(entries, opening)
+    recalc.update_field("t1", ChangeType.DEBIT, "1100")
+
+    assert recalc.entries[0].balance == Decimal("8900")
+    assert recalc.entries[2].balance == Decimal("8400")
+
+
 def test_undo_inverse_patches():
     entry = _entry("t1", 0, "5000", None, "5000")
     patch = TransactionPatch(

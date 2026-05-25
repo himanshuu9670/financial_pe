@@ -29,13 +29,24 @@ def draw_replacement_text(page: fitz.Page, target: TextReplacementTarget) -> Non
     span = target.span
     typo = span.typography
     x, y = target.insert_point
-    adjusted_point = (x, y - 1.25)
+
+    bbox_height = 0.0
+    if len(span.bbox) == 4:
+        bbox_height = span.bbox[3] - span.bbox[1]
+    else:
+        bbox_height = target.rect[3] - target.rect[1]
+
+    # Apply a very small dynamic baseline correction based on the text span height.
+    # This preserves the existing insert_text() workflow while improving per-span consistency.
+    correction = bbox_height * 0.06
+    correction = max(0.4, min(correction, 1.0))
+    adjusted_point = (x, y - correction)
 
     try:
         page.insert_text(
             adjusted_point,
             span.new_text,
-            fontname=span.pymupdf_font,
+            fontname="helv",
             fontsize=typo.font_size,
             color=typo.color,
             render_mode=0,
@@ -43,7 +54,7 @@ def draw_replacement_text(page: fitz.Page, target: TextReplacementTarget) -> Non
     except Exception as exc:
         logger.warning(
             "insert_text_failed_fallback",
-            font=span.pymupdf_font,
+            font="helv",
             error=str(exc),
         )
         page.insert_text(
