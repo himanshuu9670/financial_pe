@@ -36,6 +36,7 @@ def _coord_schema(coord) -> FieldCoordinateSchema | None:
         width=coord.width,
         height=coord.height,
         bbox=coord.bbox,
+        field_id=coord.field_id,
         font=coord.font,
         font_size=coord.font_size,
     )

@@ -43,3 +43,4 @@ def test_collect_targets_on_debit_change():
     assert len(targets) == 1
     assert targets[0].new_text == "7,000.00"
     assert targets[0].field == "debit"
+    assert targets[0].field_id == entry.coordinates.debit.field_id

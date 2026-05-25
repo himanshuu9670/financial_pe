@@ -64,6 +64,7 @@ def build_target_span(
     return TargetSpan(
         transaction_id=transaction_id,
         field=field,
+        field_id=coord.field_id,
         page=page,
         bbox=list(coord.bbox),
         original_text=original_text,

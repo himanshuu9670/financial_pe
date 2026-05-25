@@ -40,6 +40,7 @@ class FieldCoordinateSchema(BaseModel):
     width: float = 0
     height: float = 0
     bbox: list[float] = Field(default_factory=list)
+    field_id: str = ""
     font: str = "Unknown"
     font_size: float = 0.0
 

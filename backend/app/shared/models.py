@@ -21,6 +21,7 @@ class FieldCoordinate(BaseModel):
     width: float
     height: float
     bbox: list[float]
+    field_id: str = Field(default_factory=lambda: str(uuid4()))
     font: str = "Unknown"
     font_size: float = 0.0
     color: int | None = None
