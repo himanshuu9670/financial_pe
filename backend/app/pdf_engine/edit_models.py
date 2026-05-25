@@ -25,6 +25,7 @@ class TypographySpec(BaseModel):
 
 class TargetSpan(BaseModel):
     transaction_id: str
+    row_index: int
     field: str
     field_id: str
     page: int

@@ -33,14 +33,29 @@ def draw_replacement_text(page: fitz.Page, target: TextReplacementTarget) -> Non
     bbox_height = 0.0
     if len(span.bbox) == 4:
         bbox_height = span.bbox[3] - span.bbox[1]
+        original_right_edge = span.bbox[2]
     else:
         bbox_height = target.rect[3] - target.rect[1]
+        original_right_edge = target.rect[2]
 
-    # Apply a very small dynamic baseline correction based on the text span height.
-    # This preserves the existing insert_text() workflow while improving per-span consistency.
-    correction = bbox_height * 0.06
-    correction = max(0.4, min(correction, 1.0))
-    adjusted_point = (x, y - correction)
+    rect_height = target.rect[3] - target.rect[1]
+    baseline_adjustment = rect_height * 0.05
+    baseline_adjustment = min(max(baseline_adjustment, 0.5), 1.25)
+    adjusted_y = y - baseline_adjustment
+
+    try:
+        text_width = fitz.get_text_length(
+            span.new_text,
+            fontname="helv",
+            fontsize=typo.font_size,
+        )
+        adjusted_x = round(original_right_edge - text_width, 2)
+        if span.new_text.startswith("-"):
+            adjusted_x += 1.0
+    except Exception:
+        adjusted_x = x
+
+    adjusted_point = (adjusted_x, adjusted_y)
 
     try:
         page.insert_text(

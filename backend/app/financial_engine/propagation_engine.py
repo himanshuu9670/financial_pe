@@ -37,12 +37,6 @@ def propagate_balances(
     prev: Decimal | None
     if start_index == 0:
         prev = opening_balance
-        if prev is None and sorted_entries[0].balance is not None:
-            first = sorted_entries[0]
-            if first.debit is not None or first.credit is not None:
-                prev = (first.balance or Decimal(0)) + (first.debit or Decimal(0)) - (first.credit or Decimal(0))
-            else:
-                prev = first.balance
     else:
         prev = sorted_entries[start_index - 1].balance
 

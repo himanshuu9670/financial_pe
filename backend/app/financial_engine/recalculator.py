@@ -47,10 +47,8 @@ class FinancialRecalculator:
         entry.propagation_affected = False
 
         traces: list[PropagationTrace] = []
-        if field in (ChangeType.DEBIT, ChangeType.CREDIT):
+        if field in (ChangeType.DEBIT, ChangeType.CREDIT, ChangeType.BALANCE):
             traces = propagate_balances(self.entries, 0, self.opening_balance)
-        elif field == ChangeType.BALANCE:
-            traces = propagate_balances(self.entries, idx + 1, self.opening_balance)
 
         return [patch], traces
 

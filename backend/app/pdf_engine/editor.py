@@ -46,6 +46,7 @@ def collect_targets_from_ledger(
             targets.append(
                 build_target_span(
                     entry.transaction_id,
+                    entry.row_index,
                     field,
                     entry.page,
                     coord,

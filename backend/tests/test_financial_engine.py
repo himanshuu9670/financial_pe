@@ -87,6 +87,21 @@ def test_strict_row_by_row_balance_recalculation_with_skipped_rows():
     assert recalc.entries[2].balance == Decimal("8400")
 
 
+def test_balance_edit_recalculates_from_opening_balance():
+    entries = [
+        _entry("t1", 0, "1000", None, "9000"),
+        _entry("t2", 1, None, "500", "9500"),
+    ]
+    opening = Decimal("10000")
+    recalc = FinancialRecalculator(entries, opening)
+
+    _, traces = recalc.update_field("t1", ChangeType.BALANCE, "9500")
+
+    assert recalc.entries[0].balance == Decimal("9000")
+    assert recalc.entries[1].balance == Decimal("9500")
+    assert len(traces) == 1
+
+
 def test_undo_inverse_patches():
     entry = _entry("t1", 0, "5000", None, "5000")
     patch = TransactionPatch(

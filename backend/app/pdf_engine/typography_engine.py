@@ -46,6 +46,7 @@ def typography_from_coordinate(
 
 def build_target_span(
     transaction_id: str,
+    row_index: int,
     field: str,
     page: int,
     coord: FieldCoordinate,
@@ -63,6 +64,7 @@ def build_target_span(
 
     return TargetSpan(
         transaction_id=transaction_id,
+        row_index=row_index,
         field=field,
         field_id=coord.field_id,
         page=page,
