@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from app.core.config import get_settings
 from app.shared.models import StructuredTransaction, TransactionSummary
 from app.financial_engine.models import LedgerEntry
 
@@ -40,6 +41,11 @@ def validate_ledger_entries(
     opening_balance: Decimal | None = None,
 ) -> list[str]:
     issues: list[str] = []
+    settings = get_settings()
+    max_transaction_amount = settings.max_transaction_amount
+    max_negative_balance = settings.max_negative_balance
+    max_balance_delta = settings.max_balance_delta
+
     sorted_entries = sorted(entries, key=lambda e: (e.page, e.row_index))
     prev_balance = opening_balance
 
@@ -57,6 +63,52 @@ def validate_ledger_entries(
         if entry.balance is not None and entry.balance < 0:
             entry.validation_warnings.append("Negative balance")
 
+        if entry.is_modified:
+            if entry.debit is not None and abs(entry.debit) > max_transaction_amount:
+                msg = (
+                    f"Row {entry.row_index}: edited amount exceeds safe transaction threshold"
+                )
+                issues.append(msg)
+                entry.validation_warnings.append(msg)
+
+            if entry.credit is not None and abs(entry.credit) > max_transaction_amount:
+                msg = (
+                    f"Row {entry.row_index}: edited amount exceeds safe transaction threshold"
+                )
+                issues.append(msg)
+                entry.validation_warnings.append(msg)
+
+            if entry.balance is not None and entry.balance < max_negative_balance:
+                msg = (
+                    f"Row {entry.row_index}: edited balance underflow exceeds allowed threshold"
+                )
+                issues.append(msg)
+                entry.validation_warnings.append(msg)
+
+            if entry.debit is not None and entry.original_debit is not None:
+                if abs(entry.debit - entry.original_debit) > max_balance_delta:
+                    msg = (
+                        f"Row {entry.row_index}: transaction change produces abnormal ledger propagation"
+                    )
+                    issues.append(msg)
+                    entry.validation_warnings.append(msg)
+
+            if entry.credit is not None and entry.original_credit is not None:
+                if abs(entry.credit - entry.original_credit) > max_balance_delta:
+                    msg = (
+                        f"Row {entry.row_index}: transaction change produces abnormal ledger propagation"
+                    )
+                    issues.append(msg)
+                    entry.validation_warnings.append(msg)
+
+            if entry.balance is not None and entry.original_balance is not None:
+                if abs(entry.balance - entry.original_balance) > max_balance_delta:
+                    msg = (
+                        f"Row {entry.row_index}: resulting balances appear unrealistic"
+                    )
+                    issues.append(msg)
+                    entry.validation_warnings.append(msg)
+
         if prev_balance is not None and entry.balance is not None:
             if entry.debit or entry.credit:
                 expected = prev_balance
@@ -66,10 +118,16 @@ def validate_ledger_entries(
                     expected += entry.credit
                 diff = abs(expected - entry.balance)
                 if diff > TOLERANCE:
-                    msg = (
-                        f"Row {entry.row_index}: balance mismatch "
-                        f"(expected {expected}, got {entry.balance})"
-                    )
+                    if diff > max_balance_delta:
+                        msg = (
+                            f"Row {entry.row_index}: abnormal ledger propagation "
+                            f"(delta {diff} exceeds safe threshold)"
+                        )
+                    else:
+                        msg = (
+                            f"Row {entry.row_index}: balance mismatch "
+                            f"(expected {expected}, got {entry.balance})"
+                        )
                     issues.append(msg)
                     entry.validation_warnings.append(msg)
 

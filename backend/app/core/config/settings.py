@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from decimal import Decimal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -55,6 +56,11 @@ class Settings(BaseSettings):
     storage_logs: Path = Path("./storage/logs")
     temp_retention_hours: int = 24
     export_retention_days: int = 90
+
+    # Financial validation thresholds
+    max_transaction_amount: Decimal = Decimal("10000000.00")
+    max_negative_balance: Decimal = Decimal("-1000000.00")
+    max_balance_delta: Decimal = Decimal("100000000.00")
 
     log_level: str = "INFO"
     max_upload_size_mb: int = 50

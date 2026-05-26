@@ -49,6 +49,19 @@ def test_debit_edit_propagates_downstream():
     assert len(traces) >= 2
 
 
+def test_rejects_huge_transaction_edit():
+    entries = [
+        _entry("t1", 0, "5000", None, "5000"),
+        _entry("t2", 1, "1000", None, "4000"),
+    ]
+    opening = Decimal("10000")
+    recalc = FinancialRecalculator(entries, opening)
+    propagate_balances(recalc.entries, 0, opening, mark_affected=False)
+
+    with pytest.raises(ValueError, match="Edited amount exceeds safe transaction threshold"):
+        recalc.update_field("t1", ChangeType.DEBIT, "1000000000")
+
+
 def test_balance_chain_validation():
     entries = [
         _entry("t1", 0, "5000", None, "5000"),

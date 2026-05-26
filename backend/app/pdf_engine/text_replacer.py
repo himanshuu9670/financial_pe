@@ -66,12 +66,37 @@ class TextReplacer:
 
             batch_redact_page(page, redact_rects)
 
+            row_targets_by_key: dict[tuple[int, int], list[TextReplacementTarget]] = {}
+            for span, target in zip(by_page[page_num], targets):
+                if not target.success:
+                    continue
+
+                key = (span.page, span.row_index)
+                row_targets_by_key.setdefault(key, []).append(target)
+
+            row_baseline_values: dict[tuple[int, int], tuple[float, float]] = {}
+            for key, targets_for_row in row_targets_by_key.items():
+                y_positions = [t.insert_point[1] for t in targets_for_row]
+                height_values = [t.rect[3] - t.rect[1] for t in targets_for_row]
+                row_baseline_values[key] = (
+                    sum(y_positions) / len(y_positions),
+                    sum(height_values) / len(height_values),
+                )
+
             for span, target in zip(by_page[page_num], targets):
                 if not target.success:
                     results.append(ReplacementResult(target=target, applied=False))
                     continue
+
+                row_key = (span.page, span.row_index)
+                baseline_y, row_height = row_baseline_values.get(row_key, (target.insert_point[1], target.rect[3] - target.rect[1]))
                 try:
-                    draw_replacement_text(page, target)
+                    draw_replacement_text(
+                        page,
+                        target,
+                        row_baseline_y=baseline_y,
+                        row_rect_height=row_height,
+                    )
                     results.append(ReplacementResult(target=target, applied=True))
                 except Exception as exc:
                     results.append(

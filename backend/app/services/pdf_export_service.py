@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.financial_engine.models import LedgerEntry
+from app.financial_engine.validator import validate_ledger
 from app.pdf_engine.export_engine import PdfExportEngine
 from app.pdf_engine.scanned_fallback import needs_ocr_fallback
 from app.services.edit_session_service import EditSessionService, _memory_sessions
@@ -48,6 +49,17 @@ class PdfExportService:
         logger.info("export_resolve_start", statement_id=str(statement_id), metadata_keys=meta_keys, session_id=session_id)
 
         entries, bank = self._resolve_entries(statement_id, session_id, statement.metadata_json)
+        valid, issues = validate_ledger(entries, statement.opening_balance)
+        if not valid:
+            logger.warning(
+                "export_transaction_validation_failed",
+                statement_id=str(statement_id),
+                issues=issues,
+            )
+            raise ValueError(
+                "Cannot export: transaction validation failed. "
+                + " ".join(issues)
+            )
 
         output = self.settings.storage_edited / f"{statement_id}.pdf"
         extraction = statement.extraction_json or {}

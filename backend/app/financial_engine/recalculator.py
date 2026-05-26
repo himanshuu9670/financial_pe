@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
 
+from app.core.config import get_settings
 from app.financial_engine.audit_engine import apply_patches, create_inverse_patches
 from app.financial_engine.dependency_graph import build_dependency_graph, index_of
 from app.financial_engine.models import (
@@ -41,6 +42,11 @@ class FinancialRecalculator:
             old_value=self._field_value(entry, field),
             new_value=new_value,
         )
+
+        if field in (ChangeType.DEBIT, ChangeType.CREDIT, ChangeType.BALANCE):
+            new_value_decimal = parse_decimal_input(new_value)
+            if new_value_decimal is not None:
+                self._validate_transaction_change(entry, field, new_value_decimal)
 
         apply_patches(self.entries, [patch])
         entry.is_modified = True
@@ -91,6 +97,38 @@ class FinancialRecalculator:
         if field == ChangeType.DATE:
             return entry.date
         return None
+
+    @staticmethod
+    def _validate_transaction_change(
+        entry: LedgerEntry,
+        field: ChangeType,
+        new_value: Decimal,
+    ) -> None:
+        settings = get_settings()
+        max_transaction_amount = settings.max_transaction_amount
+        max_negative_balance = settings.max_negative_balance
+        max_balance_delta = settings.max_balance_delta
+
+        if field in (ChangeType.DEBIT, ChangeType.CREDIT):
+            if abs(new_value) > max_transaction_amount:
+                raise ValueError(
+                    "Edited amount exceeds safe transaction threshold"
+                )
+            original_value = entry.original_debit if field == ChangeType.DEBIT else entry.original_credit
+            if original_value is not None and abs(new_value - original_value) > max_balance_delta:
+                raise ValueError(
+                    "Transaction change produces abnormal ledger propagation"
+                )
+
+        if field == ChangeType.BALANCE:
+            if new_value < max_negative_balance:
+                raise ValueError(
+                    "Edited balance underflow exceeds allowed threshold"
+                )
+            if entry.original_balance is not None and abs(new_value - entry.original_balance) > max_balance_delta:
+                raise ValueError(
+                    "Resulting balances appear unrealistic"
+                )
 
 
 def parse_decimal_input(value: str | None) -> Decimal | None:

@@ -25,10 +25,18 @@ def batch_redact_page(page: fitz.Page, rects: list[list[float]]) -> None:
         page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
 
 
-def draw_replacement_text(page: fitz.Page, target: TextReplacementTarget) -> None:
+def draw_replacement_text(
+    page: fitz.Page,
+    target: TextReplacementTarget,
+    *,
+    row_baseline_y: float | None = None,
+    row_rect_height: float | None = None,
+) -> None:
     span = target.span
     typo = span.typography
     x, y = target.insert_point
+    if row_baseline_y is not None:
+        y = row_baseline_y
 
     bbox_height = 0.0
     if len(span.bbox) == 4:
@@ -38,7 +46,7 @@ def draw_replacement_text(page: fitz.Page, target: TextReplacementTarget) -> Non
         bbox_height = target.rect[3] - target.rect[1]
         original_right_edge = target.rect[2]
 
-    rect_height = target.rect[3] - target.rect[1]
+    rect_height = row_rect_height if row_rect_height is not None else target.rect[3] - target.rect[1]
     baseline_adjustment = rect_height * 0.05
     baseline_adjustment = min(max(baseline_adjustment, 0.5), 1.25)
     adjusted_y = y - baseline_adjustment
